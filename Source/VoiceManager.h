@@ -94,6 +94,8 @@ public:
                 if(s1_phase >= 1.0) {
                     s1_phase -= 1.0;
                 }
+                
+                
 
                 t = s1_phase / masterPhaseIncrement;
 

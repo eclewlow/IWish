@@ -197,8 +197,6 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
                 // mix 100 fully dry
                 float wet = mix->get();
 
-                float dry;
-                
                 if(mVoiceManager.isAllNotesOff()) {
                     if(wet >= 0.5) {
                         // i want 1 to 0
