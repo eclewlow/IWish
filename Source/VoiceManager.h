@@ -255,7 +255,7 @@ public:
     
     void resetAudioBuffer(int channel, int size) {
         audioBuffer->clear();
-        audioBuffer->setSize(channel, size * 2);
+        audioBuffer->setSize(channel, size);
         writeSampleIndex = 0;
         phase = 0;
     }
@@ -265,13 +265,9 @@ public:
             audioBuffer->setSample(0, writeSampleIndex++, data);
         }
     }
-    
-    bool isXFadeAudioBufferFull() {
-        return writeSampleIndex >= audioBuffer->getNumSamples();
-    }
-    
+        
     bool isAudioBufferFull() {
-        return writeSampleIndex >= audioBuffer->getNumSamples() / 2;
+        return writeSampleIndex >= audioBuffer->getNumSamples();
     }
     
     void allNotesOff() {
