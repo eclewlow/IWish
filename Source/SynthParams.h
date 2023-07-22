@@ -21,7 +21,7 @@ typedef struct SynthParams {
     float vca_attack = 10.0;
     float vca_decay = 0.0;
     float vca_sustain = 1.0;
-    float vca_release = 100.0;
+    float vca_release = 1000.0;
 
     float vcf_attack = 10.0;
     float vcf_decay = 0.0;

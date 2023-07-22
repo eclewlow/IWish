@@ -66,11 +66,15 @@ private:
     juce::AudioParameterBool* link;
     juce::AudioParameterFloat* xfade;
     juce::AudioParameterFloat* mix;
+    juce::AudioParameterFloat* attack;
+    juce::AudioParameterFloat* release;
     bool mute;
     juce::MidiKeyboardState* keyboardState;
     VoiceManager mVoiceManager;
     SynthParams synthParams;
 
+    double xfade_phase;
+    double xfade_phase_increment;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessor)
 };

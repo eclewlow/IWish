@@ -40,6 +40,8 @@ private:
     juce::Slider xfadeSlider;
     juce::Label xfadeLabel;
     juce::Slider mixSlider;
+    juce::Slider attackSlider;
+    juce::Slider releaseSlider;
 
     juce::TextButton linkButton;
     

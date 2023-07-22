@@ -122,7 +122,24 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     mixSlider.onValueChange = [this] {
         setParameterValue ("mix", (float) mixSlider.getValue() /100.0f);
     };
+    
+    attackSlider.setRange (0, 1.0, 0.001);
+    attackSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    attackSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+    attackSlider.setValue ((float) getParameterValue ("attack"), juce::NotificationType::dontSendNotification);
+    attackSlider.onValueChange = [this] {
+        setParameterValue ("attack", (float) attackSlider.getValue());
+    };
 
+    releaseSlider.setRange (0, 1.0, 0.001);
+    releaseSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    releaseSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+    releaseSlider.setValue ((float) getParameterValue ("release"), juce::NotificationType::dontSendNotification);
+    releaseSlider.onValueChange = [this] {
+        setParameterValue ("release", (float) releaseSlider.getValue());
+    };
+
+    
     
     addAndMakeVisible (pitchKnob);
     addAndMakeVisible(pitchLabel);
@@ -132,6 +149,8 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     addAndMakeVisible(xfadeSlider);
     addAndMakeVisible(xfadeLabel);
     addAndMakeVisible(mixSlider);
+    addAndMakeVisible(attackSlider);
+    addAndMakeVisible(releaseSlider);
     
     //    auto* s = new juce::Slider;
     //
@@ -204,6 +223,11 @@ void NewProjectAudioProcessorEditor::resized()
     auto mixerArea = newArea.removeFromRight(area.getWidth()/2);
     mixSlider.setBounds(mixerArea.removeFromLeft(60));
 
+    auto envelopeArea = newArea.removeFromLeft(area.getWidth()/2);
+    attackSlider.setBounds(envelopeArea.removeFromTop(30));
+    releaseSlider.setBounds(envelopeArea.removeFromTop(30));
+
+    
 //    mixSlider.setSize(20, 100);
 //    mixSlider.setCentrePosition(area.getWidth()/2, mixSlider.getBounds().getHeight()/2);
 

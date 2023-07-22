@@ -9,6 +9,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+
 //==============================================================================
 NewProjectAudioProcessor::NewProjectAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -29,11 +30,17 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
     addParameter (formantOffset = new juce::AudioParameterFloat ({ "formantOffset", 1 }, "Formant Offset", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
     addParameter (link = new juce::AudioParameterBool ({ "link", 1 }, "Link", false));
     
-    addParameter (xfade = new juce::AudioParameterFloat ({ "xfade", 1 }, "X-Fade", 0.0f, 1.0f, 0.0));
+    addParameter (xfade = new juce::AudioParameterFloat ({ "xfade", 1 }, "X-Fade", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
     addParameter (mix = new juce::AudioParameterFloat ({ "mix", 1 }, "Mix", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+
+    addParameter (attack = new juce::AudioParameterFloat ({ "attack", 1 }, "Attack", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+    addParameter (release = new juce::AudioParameterFloat ({ "release", 1 }, "Release", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+
     mute = true;
     keyboardState = new juce::MidiKeyboardState();
     mVoiceManager = VoiceManager(getSampleRate(), &synthParams);
+    xfade_phase = 0;
+    xfade_phase_increment = 0;
 }
 
 NewProjectAudioProcessor::~NewProjectAudioProcessor()
@@ -184,56 +191,130 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
                 // stop gate and play original.
                 mVoiceManager.noteOff(midiMessage.getNoteNumber());
             }
+            if(midiMessage.isAllNotesOff() || midiMessage.isResetAllControllers()) {
+                mVoiceManager.allNotesOff();
+            }
             ++midiIterator;
+        }
+        
+        double sample = 0;
+        
+        if(sideChainInput.getNumChannels()) {
+            float wet = mix->get();
+            
+            float drySignal, wetSignal=0.0;
+            
+            if(wet >= 0.5) {
+                drySignal = (1-2*(wet-0.5))*sideChainInput.getReadPointer (0)[j];
+            } else {
+                drySignal = sideChainInput.getReadPointer (0)[j];
+            }
+            
+//            if(mVoiceManager.isNoteOffTrigger()) {
+//                xfade_phase_increment = -((1-xfade->get()) * 100 + 0.1) / getSampleRate();
+//                xfade_phase = 1.0;
+//                mVoiceManager.clearNoteOffTrigger();
+//            }
+//            if(mVoiceManager.isNoteOnTrigger()) {
+//                xfade_phase_increment = ((1-xfade->get()) * 100 + 0.1) / getSampleRate();
+//                xfade_phase = 0.0;
+//                mVoiceManager.clearNoteOnTrigger();
+//            }
+//
+//            xfade_phase += xfade_phase_increment;
+//
+//            if(xfade_phase >= 1.0) {
+//                xfade_phase = 1.0;
+//            }
+//            if(xfade_phase <= 0.0) {
+//                xfade_phase = 0.0;
+//            }
+            
+            synthParams.pitch = pitch->get();
+            synthParams.formant = formant->get();
+            synthParams.xfade = xfade->get();
+            synthParams.vca_attack = 1000 * attack->get();
+            synthParams.vca_release = 1000 * release->get();
+            
+            if(wet <= 0.5) {
+                // wet is 0...0.5
+                // went from 0 ... 0.5 to go from 0 to 1
+                // so wet *2
+                wetSignal = (wet*2)*mVoiceManager.process( sideChainInput.getReadPointer (0)[j]);
+            } else {
+                wetSignal = mVoiceManager.process( sideChainInput.getReadPointer (0)[j]);
+            }
+            
+            float envelope_gain = mVoiceManager.getEnvelopeGain();
+
+            // do something with the envelope here.
+//            sample = xfade_phase * wetSignal + (1.0 - xfade_phase) * drySignal;
+            sample = envelope_gain * wetSignal + (1 - envelope_gain) * drySignal;
         }
         
         for (int channel = 0; channel < totalNumOutputChannels; ++channel)
         {
-            //            if(channel < sideChainInput.getNumChannels() && channel < totalNumOutputChannels) {
-            
             if(channel < sideChainInput.getNumChannels()) {
-                
-                // mix 0 full wet 0.0...1.0
-                // mix 100 fully dry
-                float wet = mix->get();
-
-                if(mVoiceManager.isAllNotesOff()) {
-                    if(wet >= 0.5) {
-                        // i want 1 to 0
-                        // wet from 0.5 ... 1 to go from 1 to 0
-                        // so subtract 0.5,  so 0 to .5
-                        // then multiply by 2, so 0 to 1
-                        // then 1-ans = 1 to 0
-                        // so 1-2*(wet-0.5)
-                        buffer.getWritePointer (channel)[j] = (1-2*(wet-0.5))*sideChainInput.getReadPointer (channel)[j];
-                    } else {
-                        buffer.getWritePointer (channel)[j] = sideChainInput.getReadPointer (channel)[j];
-                    }
-                }
-                else {
-                    //                    mVoiceManager.setFrequency(pitch->get() * 48.0f - 24.0f);
-                    synthParams.pitch = pitch->get();
-                    synthParams.formant = formant->get();
-                    synthParams.xfade = xfade->get();
-                    
-                    if(wet <= 0.5) {
-                        // wet is 0...0.5
-                        // went from 0 ... 0.5 to go from 0 to 1
-                        // so wet *2
-                        buffer.getWritePointer (channel)[j] = (wet*2)*mVoiceManager.process( sideChainInput.getReadPointer (channel)[j]);
-                    } else {
-                        buffer.getWritePointer (channel)[j] = mVoiceManager.process( sideChainInput.getReadPointer (channel)[j]);
-                    }
-                }
+                buffer.getWritePointer (channel)[j] = sample;
             }
-            
+            // no side chain - bypass
             else
-                buffer.getWritePointer (channel)[j] = 0;
-            //            }
+                buffer.getWritePointer (channel)[j] = sample;
             
-            // ..do something to the data...
         }
     }
+    
+////    auto fft = new juce::dsp::FFT(fftOrder);
+//    const int fftOrder = 11;
+//    const int numBins = 1 << fftOrder;     // 2048
+//    const int waveSize = numBins;          // just for clarity
+//    const int fftBufferSize = waveSize * 2;
+//
+//    float fftBuffer[fftBufferSize];
+//    float levels[numBins];
+//    float phases[numBins];
+//
+//    auto fft = new juce::dsp::FFT(fftOrder);
+////    bufferClear(fftBuffer, fftBufferSize);
+//
+////    loadWaveIntoBuffer();
+//    fft->performRealOnlyForwardTransform(fftBuffer, true);
+//
+//    // zero out the DC and Nyquist bins
+//    fftBuffer[0] = 0.0f;
+//    fftBuffer[fftBufferSize - 1] = 0.0f;
+//
+//    // convert the complex buffer into floats and find the max value
+//    auto* realBuffer = reinterpret_cast<std::complex<float>*> (fftBuffer);
+//    float maxValue = -1.f;
+//    for(int i = 1; i &lt; numBins; ++i)
+//    {
+//        float mag = std::abs(realBuffer[i]);
+//        float phase = std::arg(realBuffer[i]);
+//        maxValue = jmax(mag, maxValue);
+//        levels[i] = mag;
+//        phases[i] = phase;
+//    }
+//
+//    // normalize levels
+//    for(int i = 0; i < numBins; ++i)
+//    {
+//        levels[i] /= maxValue;
+//        // anything required to normalize phase values?
+//    }
+//
+//    // edit levels and phases using normalized values......................
+//
+//    // reconstruct complex number from levels and phases and put back into fftBuffer
+//    ??????
+//
+//    // run fft to create new waveform
+//
+//    fft->performRealOnlyInverseTransform(fftBuffer);
+////    fft->performRealOnlyInverseTransform(<#float *inputOutputData#>)
+//
+    
+    
     
     //
     //    auto alphaCopy     = alpha->get();
@@ -279,9 +360,11 @@ void NewProjectAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     stream.writeFloat (*formant);
     stream.writeFloat (*pitchOffset);
     stream.writeFloat (*formantOffset);
-    stream.writeBool (*link);
     stream.writeFloat (*xfade);
     stream.writeFloat (*mix);
+    stream.writeBool (*link);
+    stream.writeFloat (*attack);
+    stream.writeFloat (*release);
 }
 
 void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -294,9 +377,11 @@ void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeIn
     formant->setValueNotifyingHost (stream.readFloat());
     pitchOffset->setValueNotifyingHost (stream.readFloat());
     formantOffset->setValueNotifyingHost (stream.readFloat());
-    link->setValueNotifyingHost    (stream.readBool());
     xfade->setValueNotifyingHost (stream.readFloat());
     mix->setValueNotifyingHost (stream.readFloat());
+    link->setValueNotifyingHost    (stream.readBool());
+    attack->setValueNotifyingHost (stream.readFloat());
+    release->setValueNotifyingHost (stream.readFloat());
 }
 
 //==============================================================================
