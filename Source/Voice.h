@@ -28,7 +28,7 @@ public:
         
         pitch_interpolator = ParameterInterpolator();
         formant_interpolator = ParameterInterpolator();
-
+        
         pitch_ = 0;
         formant_ = 0;
     }
@@ -68,8 +68,9 @@ public:
         //        if(isAnyNoteOn()) {
         
         
-        //        test_noxfade_overwrite_buffer(&sample, input);
-        test_xfade_japan(&sample, input);
+//        test_noxfade_overwrite_buffer(&sample, input);
+//        test_xfade_japan(&sample, input);
+        test_xfade_japan_master_phase_increment(&sample, input);
         //
         //        } else {
         //            sample = input;
@@ -190,20 +191,35 @@ public:
         }
         return 0.0;
     }
-        
+    
     
     void test_noxfade_overwrite_buffer(double* sample, float input) {
-        if(isAudioBufferFull()) {
-            
-            float calculatedNote;
-            
-            calculatedNote = mNote+(mSynthParams->pitch * 48.0f - 24.0f);
-            m1_phase_increment = midiNoteToFrequency(calculatedNote) / mSampleRate;
-            
-            calculatedNote = mNote+(mSynthParams->formant * 48.0f - 24.0f);
-            //                calculatedNote = clamp(calculatedNote, 0.0, 127.0);
-            s1_phase_increment = midiNoteToFrequency(calculatedNote) / mSampleRate;
-            
+        
+        if(audioBuffer.getNumSamples() == 0)
+        {
+            *sample = input;
+            return;
+        }
+        
+        writeAudioBuffer(input);
+        
+        
+        pitch_interpolator.Update(pitch_, mSynthParams->pitch, 24*12);
+        formant_interpolator.Update(formant_, mSynthParams->formant, 24*12);
+        
+        pitch_ += pitch_interpolator.Next();
+        formant_ += formant_interpolator.Next();
+        
+        
+        float pitch = mNote + (pitch_ * 48.0f - 24.0f);
+        //        float formant = mNote + (formant_ * 48.0f - 24.0f);
+        float formant = mNote + 48 * (formant_ + pitch_ - 1);
+
+        m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
+        s1_phase_increment = midiNoteToFrequency(formant) / mSampleRate;
+        
+        if (writeSampleIndex > 1 / m1_phase_increment && writeSampleIndex > 1 / s1_phase_increment)
+        {
             m1_phase += m1_phase_increment;
             s1_phase += s1_phase_increment;
             
@@ -218,10 +234,11 @@ public:
                 s1_phase -= 1.0;
             }
             
-            *sample = getInterpolatedSample(s1_phase);
+            float t1 = s1_phase / s1_phase_increment;
+            
+            *sample = getInterpolatedSample(t1);
             
         } else {
-            writeAudioBuffer(input);
             *sample = input;
         }
     }
@@ -287,10 +304,10 @@ public:
         
         pitch_ += pitch_interpolator.Next();
         formant_ += formant_interpolator.Next();
-
+        
         
         float pitch = mNote + (pitch_ * 48.0f - 24.0f);
-//        float formant = mNote + (mSynthParams->formant * 48.0f - 24.0f);
+        //        float formant = mNote + (formant_ * 48.0f - 24.0f);
         float formant = mNote + 48 * (formant_ + pitch_ - 1);
         
         m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
@@ -401,6 +418,142 @@ public:
         }
     }
     
+    void test_xfade_japan_master_phase_increment(double* sample, float input) {
+        //        resetAudioBuffer(1, ceil(mSampleRate / midiNoteToFrequency(12)));
+        //        audioBuffer.clear();
+        //        audioBuffer.setSize(1, ceil(mSampleRate / midiNoteToFrequency(12))*2);
+        //        audioBuffer.setSample(0, 0, 1);
+        //        writeSampleIndex = 0;
+        //        xfadeSampleIndex = 0;
+        
+        if(audioBuffer.getNumSamples() == 0)
+        {
+            *sample = input;
+            return;
+        }
+        
+        writeAudioBuffer(input);
+        
+        
+        pitch_interpolator.Update(pitch_, mSynthParams->pitch, 24*12);
+        formant_interpolator.Update(formant_, mSynthParams->formant, 24*12);
+        
+        pitch_ += pitch_interpolator.Next();
+        formant_ += formant_interpolator.Next();
+        
+        
+        float pitch = mNote + (pitch_ * 48.0f - 24.0f);
+        //        float formant = mNote + (formant_ * 48.0f - 24.0f);
+        float formant = mNote + 48 * (formant_ + pitch_ - 1);
+        
+        m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
+        s1_phase_increment = midiNoteToFrequency(formant) / mSampleRate;
+        
+        if (writeSampleIndex > 1 / m1_phase_increment)
+        {
+            m1_phase += m1_phase_increment;
+            s1_phase += s1_phase_increment;
+            
+            if(m1_phase >= 1.0 + mSynthParams->xfade) {
+                m1_phase -= 1.0;
+                float t = m1_phase / m1_phase_increment;
+                s1_phase = t * s1_phase_increment;
+                s1_phase = fmod(s1_phase, 2.0);
+            }
+            
+            if(m1_phase >= 1.0 && mSynthParams->xfade > 0.0) {
+                float m2_phase = m1_phase - 1.0;
+                float t = m2_phase / m1_phase_increment;
+                float s2_phase = t * s1_phase_increment;
+                s2_phase = fmod(s2_phase, 2.0);
+                
+                float output1;
+                float output2;
+                // we are in a fade region of two masters overlapping.
+                
+                if(s1_phase >= 1.0 + mSynthParams->xfade) {
+                    s1_phase -= 1.0;
+                }
+                if(s1_phase >= 1.0 && mSynthParams->xfade > 0.0) {
+                    // we are in a region of two formants overlapping on itself
+                    // cross fade m1's s1 with itself
+                    float sn_phase = s1_phase - 1.0;
+                    
+                    float t1 = s1_phase / m1_phase_increment;
+                    float tn = sn_phase / m1_phase_increment;
+                    
+                    float s1_output = getInterpolatedSample(t1);
+                    float sn_output = getInterpolatedSample(tn);
+                    
+                    float fade_sn = sn_phase / mSynthParams->xfade;
+                    output1 = fade_sn * sn_output + (1-fade_sn) * s1_output;
+                    // do formant mix
+                } else {
+                    // no formant mix
+                    float t1 = s1_phase / m1_phase_increment;
+                    
+                    output1 = getInterpolatedSample(t1);
+                }
+                
+                if(s2_phase >= 1.0 + mSynthParams->xfade) {
+                    s2_phase -= 1.0;
+                }
+                if(s2_phase >= 1.0 && mSynthParams->xfade > 0.0) {
+                    // we are in a region of two formants overlapping
+                    // cross fade m2's s2 with itself
+                    float sn_phase = s2_phase - 1.0;
+                    
+                    float t2 = s2_phase / m1_phase_increment;
+                    float tn = sn_phase / m1_phase_increment;
+                    
+                    float s2_output = getInterpolatedSample(t2);
+                    float sn_output = getInterpolatedSample(tn);
+                    
+                    float fade_sn = sn_phase / mSynthParams->xfade;
+                    output2 = fade_sn * sn_output + (1-fade_sn) * s2_output;
+                    // do formant mix
+                } else {
+                    // no formant mix
+                    float t2 = s2_phase / m1_phase_increment;
+                    
+                    output2 = getInterpolatedSample(t2);
+                }
+                
+                float fade_m2 = m2_phase / mSynthParams->xfade;
+                *sample = fade_m2 * output2 + (1-fade_m2) * output1;
+                
+            } else {
+                // no master cross fade
+                
+                if(s1_phase >= 1.0 + mSynthParams->xfade) {
+                    s1_phase -= 1.0;
+                }
+                if(s1_phase >= 1.0 && mSynthParams->xfade > 0.0) {
+                    // we are in a region of two formants overlapping on itself
+                    // cross fade m1's s1 with itself
+                    float sn_phase = s1_phase - 1.0;
+                    
+                    float t1 = s1_phase / m1_phase_increment;
+                    float tn = sn_phase / m1_phase_increment;
+                    
+                    float s1_output = getInterpolatedSample(t1);
+                    float sn_output = getInterpolatedSample(tn);
+                    
+                    float fade_sn = sn_phase / mSynthParams->xfade;
+                    *sample = fade_sn * sn_output + (1-fade_sn) * s1_output;
+                    // do formant mix
+                } else {
+                    // no formant mix
+                    float t1 = s1_phase / m1_phase_increment;
+                    
+                    *sample = getInterpolatedSample(t1);
+                }
+            }
+        } else {
+            *sample = input;
+        }
+    }
+    
     double getEnvelopeGain() {
         return mVCAEnv.getEnvelopeGain();
     }
@@ -423,7 +576,7 @@ private:
     //
     ParameterInterpolator pitch_interpolator;
     ParameterInterpolator formant_interpolator;
-
+    
     //    Oscillator mOsc1;
     //    Oscillator mOsc2;
     ADSREnvelope mVCAEnv;
