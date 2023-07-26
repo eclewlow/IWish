@@ -68,6 +68,12 @@ private:
     juce::AudioParameterFloat* mix;
     juce::AudioParameterFloat* attack;
     juce::AudioParameterFloat* release;
+    juce::AudioParameterFloat* pitch_envelope_delay;
+    juce::AudioParameterFloat* pitch_envelope_attack;
+    juce::AudioParameterFloat* pitch_envelope_curve;
+    juce::AudioParameterFloat* pitch_envelope_amount;
+    juce::AudioParameterFloat* formant_envelope_amount;
+    
     bool mute;
     juce::MidiKeyboardState* keyboardState;
     VoiceManager mVoiceManager;

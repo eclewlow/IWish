@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "EnvelopeEditor.h"
 
 //==============================================================================
 /**
@@ -46,6 +47,9 @@ private:
     juce::TextButton linkButton;
     
     juce::Slider xFadeSlider;
+    
+//    EnvelopeEditor envelopeEditor;
+    EnvelopeComponent envelopeComponent;
     
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NewProjectAudioProcessorEditor)

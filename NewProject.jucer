@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="wN2FAY" name="NewProject" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1"
-              pluginFormats="buildAU,buildAUv3,buildVST3" pluginAUMainType="'aumf'"
+              pluginFormats="buildAU,buildAUv3,buildStandalone,buildVST3" pluginAUMainType="'aumf'"
               pluginCharacteristicsValue="pluginIsSynth,pluginProducesMidiOut,pluginWantsMidiIn">
   <MAINGROUP id="ZQAwCM" name="NewProject">
     <GROUP id="{84157599-F82E-BE2B-E63E-CD12CD57A577}" name="Source">

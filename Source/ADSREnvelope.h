@@ -11,6 +11,8 @@
 #include <cmath>
 #include "SynthParams.h"
 
+#define TIME_CONSTANT 0.001
+    
 class ADSREnvelope {
 public:
     typedef enum {
@@ -74,8 +76,8 @@ public:
             if(mGain >= 1.0 - 0.001) {
                 mGain = 1.0;
                 mState = kDecay;
-                double timeConstant = (decay) * mSampleRate * 0.001;
-                mCoeff = pow(1.0/0.001, -1.0/timeConstant);
+                double timeConstant = (decay) * mSampleRate * TIME_CONSTANT;
+                mCoeff = pow(1.0/TIME_CONSTANT, -1.0/timeConstant);
                 return mGain;
             } else {
                 return mGain;
@@ -114,8 +116,6 @@ public:
         
         return 0.0f;
     }
-    
-#define TIME_CONSTANT 0.001
     
     void noteOn() {
         mState = kAttack;

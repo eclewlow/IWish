@@ -36,6 +36,13 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
     addParameter (attack = new juce::AudioParameterFloat ({ "attack", 1 }, "Attack", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
     addParameter (release = new juce::AudioParameterFloat ({ "release", 1 }, "Release", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
 
+    addParameter (pitch_envelope_attack = new juce::AudioParameterFloat ({ "pitch_envelope_attack", 1 }, "Pitch Envelope Attack", juce::NormalisableRange<float> (0.0f, 1.0f), 0.0));
+    addParameter (pitch_envelope_delay = new juce::AudioParameterFloat ({ "pitch_envelope_delay", 1 }, "Pitch Envelope Delay", juce::NormalisableRange<float> (0.0f, 1.0f), 1.0));
+    addParameter (pitch_envelope_curve = new juce::AudioParameterFloat ({ "pitch_envelope_curve", 1 }, "Pitch Envelope Curve", juce::NormalisableRange<float> (0.0f, 1.0f), 1.0));
+    addParameter (pitch_envelope_amount = new juce::AudioParameterFloat ({ "pitch_envelope_amount", 1 }, "Pitch Envelope Amount", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+    addParameter (formant_envelope_amount = new juce::AudioParameterFloat ({ "formant_envelope_amount", 1 }, "Formant Envelope Amount", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+
+    
     mute = true;
     keyboardState = new juce::MidiKeyboardState();
     mVoiceManager = VoiceManager(getSampleRate(), &synthParams);
@@ -230,6 +237,8 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
 //                xfade_phase = 0.0;
 //            }
             
+             this->getPlayHead()->getPosition()->getBpm();
+            
             synthParams.pitch = pitch->get();
             synthParams.formant = formant->get();
             synthParams.xfade = xfade->get();
@@ -365,6 +374,12 @@ void NewProjectAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     stream.writeBool (*link);
     stream.writeFloat (*attack);
     stream.writeFloat (*release);
+
+    stream.writeFloat (*pitch_envelope_delay);
+    stream.writeFloat (*pitch_envelope_attack);
+    stream.writeFloat (*pitch_envelope_curve);
+    stream.writeFloat (*pitch_envelope_amount);
+    stream.writeFloat (*formant_envelope_amount);
 }
 
 void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -382,6 +397,12 @@ void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeIn
     link->setValueNotifyingHost    (stream.readBool());
     attack->setValueNotifyingHost (stream.readFloat());
     release->setValueNotifyingHost (stream.readFloat());
+
+    pitch_envelope_delay->setValueNotifyingHost (stream.readFloat());
+    pitch_envelope_attack->setValueNotifyingHost (stream.readFloat());
+    pitch_envelope_curve->setValueNotifyingHost (stream.readFloat());
+    pitch_envelope_amount->setValueNotifyingHost (stream.readFloat());
+    formant_envelope_amount->setValueNotifyingHost (stream.readFloat());
 }
 
 //==============================================================================

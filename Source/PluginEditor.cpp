@@ -140,6 +140,32 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     };
 
     
+    envelopeComponent.setAttack ((float) pow(10, getParameterValue ("pitch_envelope_attack")) , juce::NotificationType::dontSendNotification);
+    envelopeComponent.setAttackChangeListener([this] {
+        setParameterValue ("pitch_envelope_attack", (float) log10(envelopeComponent.getAttack()));
+    });
+
+    envelopeComponent.setDelay ((float) getParameterValue ("pitch_envelope_delay"), juce::NotificationType::dontSendNotification);
+    envelopeComponent.setDelayChangeListener([this] {
+        setParameterValue ("pitch_envelope_delay", (float)envelopeComponent.getDelay());
+    });
+
+    envelopeComponent.setCurve ((float) getParameterValue ("pitch_envelope_curve"), juce::NotificationType::dontSendNotification);
+    envelopeComponent.setCurveChangeListener([this] {
+        setParameterValue ("pitch_envelope_curve", (float) envelopeComponent.getCurve());
+    });
+
+    envelopeComponent.setPitchEnvelopeAmount ((float) getParameterValue ("pitch_envelope_amount"), juce::NotificationType::dontSendNotification);
+    envelopeComponent.setPitchEnvelopeAmountChangeListener([this] {
+        setParameterValue ("pitch_envelope_amount", (float) envelopeComponent.getPitchEnvelopeAmount());
+    });
+
+    envelopeComponent.setFormantEnvelopeAmount ((float) getParameterValue ("formant_envelope_amount"), juce::NotificationType::dontSendNotification);
+    envelopeComponent.setFormantEnvelopeAmountChangeListener([this] {
+        setParameterValue ("formant_envelope_amount", (float) envelopeComponent.getFormantEnvelopeAmount());
+    });
+
+      
     
     addAndMakeVisible (pitchKnob);
     addAndMakeVisible(pitchLabel);
@@ -151,6 +177,7 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     addAndMakeVisible(mixSlider);
     addAndMakeVisible(attackSlider);
     addAndMakeVisible(releaseSlider);
+    addAndMakeVisible(envelopeComponent);
     
     //    auto* s = new juce::Slider;
     //
@@ -227,6 +254,8 @@ void NewProjectAudioProcessorEditor::resized()
     attackSlider.setBounds(envelopeArea.removeFromTop(30));
     releaseSlider.setBounds(envelopeArea.removeFromTop(30));
 
+    envelopeComponent.setBounds(envelopeArea.removeFromTop(50));
+    envelopeComponent.setSize(area.getWidth()/2, area.getWidth()/2);
     
 //    mixSlider.setSize(20, 100);
 //    mixSlider.setCentrePosition(area.getWidth()/2, mixSlider.getBounds().getHeight()/2);
