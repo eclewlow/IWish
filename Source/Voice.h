@@ -72,7 +72,7 @@ public:
         
         test_xfade_japan_master_phase_increment(&sample, input, pitchEnvelope);
 
-        double cutoff = clamp(3000.0f * inverseNyquist, 0.0005444f, 0.9070295f);
+        double cutoff = clamp(4000.0f * inverseNyquist, 0.0005444f, 0.9070295f);
         double resonance = clamp(0.10, 0.10f, 100.0f);
 
         svf.set_f_q<FREQUENCY_EXACT>(cutoff, resonance);
