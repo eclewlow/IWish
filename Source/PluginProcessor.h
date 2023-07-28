@@ -73,7 +73,9 @@ private:
     juce::AudioParameterFloat* pitch_envelope_curve;
     juce::AudioParameterFloat* pitch_envelope_amount;
     juce::AudioParameterFloat* formant_envelope_amount;
-    
+    juce::AudioParameterFloat* pitch_envelope_link_offset;
+    juce::AudioParameterFloat* formant_envelope_link_offset;
+
     bool mute;
     juce::MidiKeyboardState* keyboardState;
     VoiceManager mVoiceManager;

@@ -519,10 +519,13 @@ public:
         // top green
         fromRadians = degreesToRadians(90.0f);
         toRadians = degreesToRadians(160.0f * (1-pitch_envelope_amount) + 10.0f);
-        
-        
+
         p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
-        g.setColour(juce::Colours::greenyellow);
+        if(mHoverState == kPitchHovered || mSelectionState == kPitchSelected) {
+            g.setColour(juce::Colours::whitesmoke);
+        } else {
+            g.setColour(juce::Colours::greenyellow);
+        }
         g.strokePath(p, pathStrokeType);
 
 
@@ -544,7 +547,11 @@ public:
         toRadians = degreesToRadians(360.0f-(160.0f * (1-formant_envelope_amount) + 10.0f));
 
         p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
-        g.setColour(juce::Colours::red);
+        if(mHoverState == kFormantHovered || mSelectionState == kFormantSelected) {
+            g.setColour(juce::Colours::whitesmoke);
+        } else {
+            g.setColour(juce::Colours::red);
+        }
         g.strokePath(p, pathStrokeType);
         
         
@@ -552,20 +559,26 @@ public:
         float rx, ry, dx, dy;
         rx = (getWidth() - ellipseSize2) / 2;
         ry = (getHeight() - ellipseSize2) / 2;
+        
         if(mHoverState == kPitchHovered || mSelectionState == kPitchSelected) {
+            g.setColour(juce::Colours::whitesmoke);
+        } else {
             g.setColour(juce::Colours::greenyellow);
-
-            dx = rx * cosf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
-            dy = ry * sinf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
-            g.drawEllipse(getWidth()/2 + dx - ellipseSize/2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
         }
-        else if(mHoverState == kFormantHovered || mSelectionState == kFormantSelected) {
+
+        dx = rx * cosf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
+        dy = ry * sinf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
+        g.drawEllipse(getWidth()/2 + dx - ellipseSize/2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
+
+        if(mHoverState == kFormantHovered || mSelectionState == kFormantSelected) {
+            g.setColour(juce::Colours::whitesmoke);
+        } else {
             g.setColour(juce::Colours::red);
-
-            dx = rx * cosf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
-            dy = ry * sinf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
-            g.drawEllipse(getWidth()/2 + dx - ellipseSize / 2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
         }
+
+        dx = rx * cosf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
+        dy = ry * sinf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
+        g.drawEllipse(getWidth()/2 + dx - ellipseSize / 2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
     }
     
     
@@ -601,26 +614,31 @@ public:
 
     void setAttack (double newValue, juce::NotificationType notification)
     {
+        newValue = clamp(newValue, 0, 1.0);
         envelopeEditor.setAttack(newValue);
     }
 
     void setDelay (double newValue, juce::NotificationType notification)
     {
+        newValue = clamp(newValue, 0, 1.0);
         envelopeEditor.setDelay(newValue);
     }
 
     void setCurve (double newValue, juce::NotificationType notification)
     {
+        newValue = clamp(newValue, 0, 1.0);
         envelopeEditor.setCurve(newValue);
     }
 
     void setPitchEnvelopeAmount (double newValue, juce::NotificationType notification)
     {
+        newValue = clamp(newValue, 0, 1.0);
         pitch_envelope_amount = newValue;
     }
 
     void setFormantEnvelopeAmount (double newValue, juce::NotificationType notification)
     {
+        newValue = clamp(newValue, 0, 1.0);
         formant_envelope_amount = newValue;
     }
     

@@ -93,6 +93,8 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
             linkButton.setColour(juce::TextButton::buttonColourId, juce::Colours::grey);
             setParameterValue ("formantOffset", getParameterValue("formant"));
             setParameterValue ("pitchOffset", getParameterValue("pitch"));
+            setParameterValue ("formant_envelope_link_offset", getParameterValue("formant_envelope_amount"));
+            setParameterValue ("pitch_envelope_link_offset", getParameterValue("pitch_envelope_amount"));
         }
         else
             linkButton.setColour(juce::TextButton::buttonColourId, getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
@@ -158,11 +160,22 @@ NewProjectAudioProcessorEditor::NewProjectAudioProcessorEditor (NewProjectAudioP
     envelopeComponent.setPitchEnvelopeAmount ((float) getParameterValue ("pitch_envelope_amount"), juce::NotificationType::dontSendNotification);
     envelopeComponent.setPitchEnvelopeAmountChangeListener([this] {
         setParameterValue ("pitch_envelope_amount", (float) envelopeComponent.getPitchEnvelopeAmount());
+
+        if((bool)getParameterValue("link")) {
+            float diff = (float)getParameterValue("pitch_envelope_amount") - (float)getParameterValue("pitch_envelope_link_offset");
+            float newFormant = diff + (float)getParameterValue("formant_envelope_link_offset");
+            envelopeComponent.setFormantEnvelopeAmount (newFormant, juce::NotificationType::dontSendNotification);
+            setParameterValue ("formant_envelope_amount", (float) envelopeComponent.getFormantEnvelopeAmount());
+        }
     });
 
     envelopeComponent.setFormantEnvelopeAmount ((float) getParameterValue ("formant_envelope_amount"), juce::NotificationType::dontSendNotification);
     envelopeComponent.setFormantEnvelopeAmountChangeListener([this] {
         setParameterValue ("formant_envelope_amount", (float) envelopeComponent.getFormantEnvelopeAmount());
+        if((bool)getParameterValue("link")) {
+            setParameterValue ("formant_envelope_link_offset", getParameterValue("formant_envelope_amount"));
+            setParameterValue ("pitch_envelope_link_offset", getParameterValue("pitch_envelope_amount"));
+        }
     });
 
       

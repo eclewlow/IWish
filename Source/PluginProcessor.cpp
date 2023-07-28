@@ -41,6 +41,8 @@ NewProjectAudioProcessor::NewProjectAudioProcessor()
     addParameter (pitch_envelope_curve = new juce::AudioParameterFloat ({ "pitch_envelope_curve", 1 }, "Pitch Envelope Curve", juce::NormalisableRange<float> (0.0f, 1.0f), 1.0));
     addParameter (pitch_envelope_amount = new juce::AudioParameterFloat ({ "pitch_envelope_amount", 1 }, "Pitch Envelope Amount", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
     addParameter (formant_envelope_amount = new juce::AudioParameterFloat ({ "formant_envelope_amount", 1 }, "Formant Envelope Amount", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+    addParameter (pitch_envelope_link_offset = new juce::AudioParameterFloat ({ "pitch_envelope_link_offset", 1 }, "Pitch Envelope Link Offset", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
+    addParameter (formant_envelope_link_offset = new juce::AudioParameterFloat ({ "formant_envelope_link_offset", 1 }, "Formant Envelope Link Offset", juce::NormalisableRange<float> (0.0f, 1.0f), 0.5));
 
     
     mute = true;
