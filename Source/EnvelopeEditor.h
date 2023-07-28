@@ -30,10 +30,6 @@ public:
     
     EnvelopeEditor()
     {
-        //            addAndMakeVisible (scene);
-        attack = 10.0;
-        delay = 0.2;
-        curve = 0.5;
         mSelectionState = kNoSelection;
         mHoverState = kNoHover;
         setSize (400, 400);
@@ -75,7 +71,12 @@ public:
     {
         mSelectionState = kNoSelection;
     }
-    
+
+    void mouseExit   (const juce::MouseEvent& e) override
+    {
+        mHoverState = kNoHover;
+    }
+
     void mouseDrag (const juce::MouseEvent& e) override
     {
         if(mSelectionState == kAttackSelected)
@@ -95,6 +96,9 @@ public:
                 }
             }
             attack = clamp(attack, 1.0, 10.0);
+            
+            onAttackChange();
+            
             this->repaint();
         }
         else if(mSelectionState == kDelaySelected)
@@ -112,6 +116,9 @@ public:
             {
                 delay = 1 - 1 / attack;
             }
+            
+            onDelayChange();
+            
             this->repaint();
         }
         else if(mSelectionState == kCurveSelected)
@@ -127,6 +134,7 @@ public:
             }
             
             curve = clamp(curve, 0.001, 0.999);
+            onCurveChange();
             
             this->repaint();
         }
@@ -349,31 +357,121 @@ private:
 
 class EnvelopeComponent  : public juce::Component, juce::Component::MouseListener {
 public:
+    typedef enum {
+        kNoSelection = 0,
+        kPitchSelected = 1,
+        kFormantSelected = 2,
+    } SelectionState;
+    
+    typedef enum {
+        kNoHover = 0,
+        kPitchHovered = 1,
+        kFormantHovered = 2,
+    } HoverState;
+
     EnvelopeComponent()
     {
         addAndMakeVisible(envelopeEditor, 0);
         setSize (400, 400);
         setInterceptsMouseClicks(true, true);
-        
-        pitch_envelope_amount = 0.5;
-        formant_envelope_amount = 0.5;
     }
     
     void mouseDown (const juce::MouseEvent& e) override
     {
+        float pointX = e.getPosition().x;
+        float pointY = e.getPosition().y;
+
+        float dx = pointX - getWidth() / 2;
+        float dy = getHeight() / 2 - pointY;
+        
+        float d1 = sqrtf(pow(dx, 2) + pow(dy, 2));
+        
+        if(d1 > getHeight() / 2 - 20.0f && dy > 0) {
+            mSelectionState = kPitchSelected;
+        }
+        else if(d1 > getHeight() / 2 - 20.0f && dy < 0) {
+            mSelectionState = kFormantSelected;
+        }
+        else
+        {
+            mSelectionState = kNoSelection;
+        }
+        this->repaint();
+        
     }
     
     void mouseUp   (const juce::MouseEvent& e) override
     {
+        mSelectionState = kNoSelection;
     }
     
     void mouseDrag (const juce::MouseEvent& e) override
     {
+        if(mSelectionState == kPitchSelected)
+        {
+            float x = clamp(e.getPosition().x, 0.0f, getWidth());
+            pitch_envelope_amount = x / getWidth();
+            onPitchEnvelopeAmountChange();
+            
+            this->repaint();
+        }
+        else if(mSelectionState == kFormantSelected)
+        {
+            float x = clamp(e.getPosition().x, 0.0f, getWidth());
+            formant_envelope_amount = x / getWidth();
+            onFormantEnvelopeAmountChange();
+
+            this->repaint();
+        }
     }
     
+    void mouseExit (const juce::MouseEvent& e) override
+    {
+        mHoverState = kNoHover;
+    }
+    
+    void mouseDoubleClick (const juce::MouseEvent& e) override
+    {
+        float pointX = e.getPosition().x;
+        float pointY = e.getPosition().y;
+
+        float dx = pointX - getWidth() / 2;
+        float dy = getHeight() / 2 - pointY;
+        
+        float d1 = sqrtf(pow(dx, 2) + pow(dy, 2));
+        
+        if(d1 > getHeight() / 2 - 20.0f && dy > 0) {
+            pitch_envelope_amount = 0.5f;
+            onPitchEnvelopeAmountChange();
+        }
+        else if(d1 > getHeight() / 2 - 20.0f && dy < 0) {
+            formant_envelope_amount = 0.5f;
+            onFormantEnvelopeAmountChange();
+        }
+        this->repaint();
+    }
     
     void mouseMove (const juce::MouseEvent& e) override
     {
+        float pointX = e.getPosition().x;
+        float pointY = e.getPosition().y;
+
+        float dx = pointX - getWidth() / 2;
+        float dy = getHeight() / 2 - pointY;
+        
+        float d1 = sqrtf(pow(dx, 2) + pow(dy, 2));
+        
+        if(d1 > getHeight() / 2 - 20.0f && dy > 0) {
+            mHoverState = kPitchHovered;
+        }
+        else if(d1 > getHeight() / 2 - 20.0f && dy < 0) {
+            mHoverState = kFormantHovered;
+        }
+        else
+        {
+            mHoverState = kNoHover;
+        }
+        this->repaint();
     }
     
     static double radiansToDegrees (double rads) noexcept { return (180.0 / juce::MathConstants<double>::pi) * rads; }
@@ -381,6 +479,8 @@ public:
 
     static float radiansToDegrees (float rads) noexcept { return (180.0f / juce::MathConstants<float>::pi) * rads; }
     static float degreesToRadians (float degs) noexcept { return (juce::MathConstants<float>::pi / 180.0f) * (90.0f-degs); }
+    static float degreesToRadiansEllipse (float degs) noexcept { return (juce::MathConstants<float>::pi / 180.0f) * (0.0f+degs);}
+    static float radiansToDegreesEllipse (float rads) noexcept { return (180.0f / juce::MathConstants<float>::pi) * rads; }
 
     void paint (juce::Graphics& g) override
     {
@@ -399,26 +499,73 @@ public:
 
         float x = 0;
         float y = 0;
+
+        float ellipseSize = 8;
+        float ellipseSize2 = ellipseSize * 2;
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        p = juce::Path();
+        // top grey
         fromRadians = degreesToRadians(0.0f+10.0f);
         toRadians = degreesToRadians(180.0f-10.0f);
         
-        p.addArc(x+2, y+2, getWidth()-4, getHeight()-4, fromRadians, toRadians, true);
+        
+        p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
+        g.setColour(juce::Colours::grey);
+        g.strokePath(p, pathStrokeType);
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        p = juce::Path();
+        // top green
+        fromRadians = degreesToRadians(90.0f);
+        toRadians = degreesToRadians(160.0f * (1-pitch_envelope_amount) + 10.0f);
+        
+        
+        p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
         g.setColour(juce::Colours::greenyellow);
         g.strokePath(p, pathStrokeType);
-        
-        p = juce::Path();
 
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        p = juce::Path();
+        // bottom grey
         fromRadians = degreesToRadians(180.0f+10.0f);
         toRadians = degreesToRadians(360.0f-10.0f);
 
-        p.addArc(x+2, y+2, getWidth()-4, getHeight()-4, fromRadians, toRadians, true);
+        p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
+        g.setColour(juce::Colours::grey);
+        g.strokePath(p, pathStrokeType);
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        
+        p = juce::Path();
+        // bottom red
+        fromRadians = degreesToRadians(270.0f);
+        toRadians = degreesToRadians(360.0f-(160.0f * (1-formant_envelope_amount) + 10.0f));
+
+        p.addArc(x+ellipseSize2/2, y+ellipseSize2/2, getWidth()-ellipseSize2, getHeight()-ellipseSize2, fromRadians, toRadians, true);
         g.setColour(juce::Colours::red);
-        
-        
         g.strokePath(p, pathStrokeType);
         
-//        g.drawEllipse(attackPoint * getWidth() - ellipseWidth / 2, 5.0 - ellipseHeight / 2, 5.0, 5.0, 5.0);
+        
 
+        float rx, ry, dx, dy;
+        rx = (getWidth() - ellipseSize2) / 2;
+        ry = (getHeight() - ellipseSize2) / 2;
+        if(mHoverState == kPitchHovered || mSelectionState == kPitchSelected) {
+            g.setColour(juce::Colours::greenyellow);
+
+            dx = rx * cosf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
+            dy = ry * sinf(degreesToRadiansEllipse(160.0f * (1-pitch_envelope_amount) + 10.0f));
+            g.drawEllipse(getWidth()/2 + dx - ellipseSize/2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
+        }
+        else if(mHoverState == kFormantHovered || mSelectionState == kFormantSelected) {
+            g.setColour(juce::Colours::red);
+
+            dx = rx * cosf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
+            dy = ry * sinf(degreesToRadiansEllipse(0.0f - 160.0f * (1-formant_envelope_amount) - 10.0f));
+            g.drawEllipse(getWidth()/2 + dx - ellipseSize / 2, getHeight()/2 - dy - ellipseSize / 2, ellipseSize, ellipseSize, ellipseSize);
+        }
     }
     
     
@@ -502,6 +649,9 @@ private:
     float pitch_envelope_amount;
     float formant_envelope_amount;
     EnvelopeEditor envelopeEditor;
+    SelectionState mSelectionState;
+    HoverState mHoverState;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EnvelopeComponent)
 };
 

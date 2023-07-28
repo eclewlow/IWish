@@ -32,7 +32,7 @@ typedef struct SynthParams {
     float pitch_envelope_attack = 8.0;
     float pitch_envelope_curve = 1.0;
     
-    float pitch_envelope_amout = 0.0;
+    float pitch_envelope_amount = 0.0;
     float formant_envelope_amount = 0.0;
     
     float vcf_envelope_amount = 0.0;

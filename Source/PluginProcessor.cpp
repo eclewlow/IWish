@@ -239,6 +239,13 @@ void NewProjectAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             
              this->getPlayHead()->getPosition()->getBpm();
             
+            synthParams.formant_envelope_amount = formant_envelope_amount->get();
+            synthParams.pitch_envelope_amount = pitch_envelope_amount->get();
+            synthParams.pitch_envelope_delay = pitch_envelope_delay->get();
+            synthParams.pitch_envelope_attack = pitch_envelope_attack->get();
+            synthParams.pitch_envelope_curve = pitch_envelope_curve->get();
+
+            
             synthParams.pitch = pitch->get();
             synthParams.formant = formant->get();
             synthParams.xfade = xfade->get();
