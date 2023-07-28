@@ -207,9 +207,9 @@ public:
         float pitchShift = mSynthParams->pitch_envelope_amount;
         float formantShift = mSynthParams->formant_envelope_amount;
         
-        float pitch = mNote + (pitch_ * 48.0f - 24.0f) + (pitchShift * 48.0f - 24.0f) * pitchEnvelope;
+        float pitch = mNote + (pitch_ * 48.0f - 24.0f) + (pitchShift * 24.0f - 12.0f) * pitchEnvelope;
         //        float formant = mNote + (formant_ * 48.0f - 24.0f);
-        float formant = mNote + 48 * (formant_ + pitch_ - 1) + 48 * (formantShift + pitchShift - 1) * pitchEnvelope;
+        float formant = mNote + 48 * (formant_ + pitch_ - 1) + 24.0f * (formantShift + pitchShift - 1) * pitchEnvelope;
         
         m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
         s1_phase_increment = midiNoteToFrequency(formant) / mSampleRate;
