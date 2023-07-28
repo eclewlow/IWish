@@ -35,15 +35,7 @@ public:
     void setSampleRate(double newSampleRate) {
         mSampleRate = newSampleRate;
     }
-    
-    void recomputeFrequency() {
-        std::list<Voice>::iterator it;
-        
-        for (it = mVoiceList.begin(); it!= mVoiceList.end(); it++) {
-            (*it).recomputeFrequency();
-        }
-        
-    }
+
     
     void reset() {
         std::list<Voice>::iterator it;

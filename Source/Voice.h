@@ -12,16 +12,25 @@
 #import "ADSREnvelope.h"
 #import "ParameterInterpolator.h"
 #import "PitchEnvelope.h"
+#import "Filter.h"
 
 
 class Voice {
 public:
-    Voice(double sampleRate = 44100.0, SynthParams* synthParams={}):mVCAEnv(ADSREnvelope::ADSR_TYPE_VCA, synthParams, sampleRate),mPitchEnv(synthParams, sampleRate),audioBuffer(){
+    Voice(double sampleRate = 44100.0, SynthParams* synthParams={}):mVCAEnv(ADSREnvelope::ADSR_TYPE_VCA, synthParams, sampleRate),mPitchEnv(synthParams, sampleRate), svf(sampleRate, synthParams), audioBuffer(){
         //        double sampleRate = 44100.0, SynthParams* synthParams={}):mVCAEnv(ADSREnvelope::ADSR_TYPE_VCA, synthParams),mVCFEnv(ADSREnvelope::ADSR_TYPE_VCF, synthParams), mResonantFilter(sampleRate, synthParams),mResonantFilter2(sampleRate, synthParams), svf(sampleRate, synthParams) {
         mSynthParams = synthParams;
         mSampleRate = sampleRate;
+        mSampleRate = sampleRate;
+        nyquist = 0.5 * sampleRate;
+        inverseNyquist = 1.0 / nyquist;
         //        audioBuffer = new juce::AudioBuffer<float>();//1, 2048);
         resetAudioBuffer(1, 0);
+
+
+        m1_phase_increment_interpolator = ParameterInterpolator();
+        s1_phase_increment_interpolator = ParameterInterpolator();
+
         m1_phase = 0;
         s1_phase = 0;
         m1_phase_increment = 0;
@@ -32,37 +41,25 @@ public:
         
         pitch_ = 0;
         formant_ = 0;
+
+        pitch_shift_interpolator = ParameterInterpolator();
+        formant_shift_interpolator = ParameterInterpolator();
+
+        pitch_shift_ = 0;
+        formant_shift_ = 0;
+        
+        svf.Init();
     }
-    
-    //    ~Voice() {
-    //        if(audioBuffer) delete (audioBuffer);
-    //    }
-    
-    //    inline double Oscillator2MIDINoteToFrequency(double note) {
-    //        constexpr auto kMiddleA = 440.0;
-    //        double fine_tune = mSynthParams->fine_tune/100.0f;
-    //        double coarse_tune = mSynthParams->coarse_tune/100.0f;
-    //        double pitchBend = (mSynthParams->pitch_bend - 0x40) * 12.0 / 0x40;
-    //
-    //        // pitch bend is 0x00 -> 0x40 -> 0x7F
-    //        // this allows for 64 values below middle
-    //        // and allows for 63 values above middle,
-    //        // including the middle this totals to 128 possible values
-    //        return (kMiddleA / 32.0) * pow(2, (((note+fine_tune+coarse_tune+pitchBend) - 9.0) / 12.0));
-    //    }
-    //
-    //    inline double Oscillator1MIDINoteToFrequency(double note) {
-    //        constexpr auto kMiddleA = 440.0;
-    //        double pitchBend = (mSynthParams->pitch_bend - 0x40) * 12.0 / 0x40;
-    //
-    //        return (kMiddleA / 32.0) * pow(2, (((note+pitchBend) - 9.0) / 12.0));
-    //    }
     
     bool isFinished() const {
         return mVCAEnv.getEnvelopeState() == ADSREnvelope::kOff;
         //        return !mNoteOn;
     }
     
+    static inline double clamp(double input, double low, double high) {
+        return std::min(std::max(input, low), high);
+    }
+
     double process(float input) {
         double sample = 0.0f;
         
@@ -73,25 +70,15 @@ public:
 //        test_xfade_japan(&sample, input);
         float pitchEnvelope = mPitchEnv.process();
         
-//        float pitchShift = pitchEnvelope * (mSynthParams->pitch_envelope_amount * 2.0f - 1.0f);
-//        float formantShift = pitchEnvelope * (mSynthParams->formant_envelope_amount * 2.0f - 1.0f);
-        
         test_xfade_japan_master_phase_increment(&sample, input, pitchEnvelope);
-        //
-        //        } else {
-        //            sample = input;
-        //        }
-        //        noteOnTrigger = false;
-        //        noteOffTrigger = false;
-        
-        //        float vcfEnvelopeControlVoltage = mVCFEnv.process();
-        
-        //        float filterStage1Output = mResonantFilter.process(oscillatorOutput, vcfEnvelopeControlVoltage, mNote);
-        //        float filterState2Output = mResonantFilter2.process(filterStage1Output, vcfEnvelopeControlVoltage, mNote);
-        //        float filterState2Output = svf.Process<FILTER_MODE_LOW_PASS>(oscillatorOutput, vcfEnvelopeControlVoltage, mNote);
-        
-        //        return 0;
-        float vcaEnvelopeOutput = mVCAEnv.process() * sample;
+
+        double cutoff = clamp(3000.0f * inverseNyquist, 0.0005444f, 0.9070295f);
+        double resonance = clamp(0.10, 0.10f, 100.0f);
+
+        svf.set_f_q<FREQUENCY_EXACT>(cutoff, resonance);
+        float filtered_output = svf.Process<FILTER_MODE_LOW_PASS>((float)sample);
+
+        float vcaEnvelopeOutput = mVCAEnv.process() * filtered_output;
         
         return vcaEnvelopeOutput;
     }
@@ -116,20 +103,6 @@ public:
         mPitchEnv.noteOff();
         //        mVCFEnv.noteOff();
         //        mNoteOn = false;
-    }
-    
-    void recomputeFrequency() {
-        //        if (mSynthParams->oscillator_mode == OSCILLATOR_MODE_FM) {
-        //            double osc1freq = Oscillator1MIDINoteToFrequency(mNote);
-        //            double osc2freq = Oscillator2MIDINoteToFrequency(mNote);
-        //            mOsc1.setFrequency(osc1freq * (mSynthParams->fm_gain == 0.0 ? 1.0: mSynthParams->fm_ratio));
-        //            mOsc2.setFrequency(osc2freq);
-        //        } else {
-        //            double osc1freq = Oscillator1MIDINoteToFrequency(mNote);
-        //            double osc2freq = Oscillator2MIDINoteToFrequency(mNote);
-        //            mOsc1.setFrequency(osc1freq * (mSynthParams->fm_gain == 0.0 ? 1.0: mSynthParams->fm_ratio));
-        //            mOsc2.setFrequency(osc2freq);
-        //        }
     }
     
     void reset() {
@@ -204,15 +177,25 @@ public:
         pitch_ += pitch_interpolator.Next();
         formant_ += formant_interpolator.Next();
         
-        float pitchShift = mSynthParams->pitch_envelope_amount;
-        float formantShift = mSynthParams->formant_envelope_amount;
+
+        pitch_shift_interpolator.Update(pitch_shift_, mSynthParams->pitch_envelope_amount, 24*12);
+        formant_shift_interpolator.Update(formant_shift_, mSynthParams->formant_envelope_amount, 24*12);
+
+        pitch_shift_ += pitch_shift_interpolator.Next();
+        formant_shift_ += formant_shift_interpolator.Next();
         
-        float pitch = mNote + (pitch_ * 48.0f - 24.0f) + (pitchShift * 24.0f - 12.0f) * pitchEnvelope;
-        //        float formant = mNote + (formant_ * 48.0f - 24.0f);
-        float formant = mNote + 48 * (formant_ + pitch_ - 1) + 24.0f * (formantShift + pitchShift - 1) * pitchEnvelope;
+        float pitch = mNote + (pitch_ * 48.0f - 24.0f) + (pitch_shift_ * 24.0f - 12.0f) * pitchEnvelope;
+        float formant = mNote + 48 * (formant_ + pitch_ - 1) + 24.0f * (formant_shift_ + pitch_shift_ - 1) * pitchEnvelope;
         
-        m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
-        s1_phase_increment = midiNoteToFrequency(formant) / mSampleRate;
+        
+        m1_phase_increment_interpolator.Update(m1_phase_increment, midiNoteToFrequency(pitch) / mSampleRate, 24*12);
+        s1_phase_increment_interpolator.Update(s1_phase_increment, midiNoteToFrequency(formant) / mSampleRate, 24*12);
+
+        m1_phase_increment += m1_phase_increment_interpolator.Next();
+        s1_phase_increment += s1_phase_increment_interpolator.Next();
+
+//        m1_phase_increment = midiNoteToFrequency(pitch) / mSampleRate;
+//        s1_phase_increment = midiNoteToFrequency(formant) / mSampleRate;
         
         if (writeSampleIndex > 1 / m1_phase_increment)
         {
@@ -326,6 +309,8 @@ public:
 private:
     double mOmega = { 0.0 };
     double mDeltaOmega = { 0.0 };
+    double nyquist;
+    double inverseNyquist;
     double mSampleRate = { 0.0 };
     int mNote;
     double mFrequency = {0.0f};
@@ -339,8 +324,6 @@ private:
     //    ParameterInterpolator fm_frequency;
     //    ParameterInterpolator fm_feedback;
     //
-    ParameterInterpolator pitch_interpolator;
-    ParameterInterpolator formant_interpolator;
     
     //    Oscillator mOsc1;
     //    Oscillator mOsc2;
@@ -358,11 +341,27 @@ private:
     SynthParams* mSynthParams;
     double m1_phase;
     double s1_phase;
+    
     double m1_phase_increment;
     double s1_phase_increment;
     
+    ParameterInterpolator m1_phase_increment_interpolator;
+    ParameterInterpolator s1_phase_increment_interpolator;
+    
+    ParameterInterpolator pitch_interpolator;
+    ParameterInterpolator formant_interpolator;
+
     double pitch_;
     double formant_;
+
+    ParameterInterpolator pitch_shift_interpolator;
+    ParameterInterpolator formant_shift_interpolator;
+
+    double pitch_shift_;
+    double formant_shift_;
+    
+    Svf svf;
+
 };
 
 #endif /* Voice_h */

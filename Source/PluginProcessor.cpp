@@ -389,6 +389,10 @@ void NewProjectAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     stream.writeFloat (*pitch_envelope_curve);
     stream.writeFloat (*pitch_envelope_amount);
     stream.writeFloat (*formant_envelope_amount);
+    
+    stream.writeFloat (*pitch_envelope_link_offset);
+    stream.writeFloat (*formant_envelope_link_offset);
+
 }
 
 void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -412,6 +416,8 @@ void NewProjectAudioProcessor::setStateInformation (const void* data, int sizeIn
     pitch_envelope_curve->setValueNotifyingHost (stream.readFloat());
     pitch_envelope_amount->setValueNotifyingHost (stream.readFloat());
     formant_envelope_amount->setValueNotifyingHost (stream.readFloat());
+    pitch_envelope_link_offset->setValueNotifyingHost (stream.readFloat());
+    formant_envelope_link_offset->setValueNotifyingHost (stream.readFloat());
 }
 
 //==============================================================================

@@ -614,7 +614,7 @@ public:
 
     void setAttack (double newValue, juce::NotificationType notification)
     {
-        newValue = clamp(newValue, 0, 1.0);
+        newValue = clamp(newValue, 1, 10.0);
         envelopeEditor.setAttack(newValue);
     }
 

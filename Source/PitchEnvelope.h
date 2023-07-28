@@ -11,6 +11,7 @@
 #include <numbers>
 #include <cmath>
 #include "SynthParams.h"
+#import "ParameterInterpolator.h"
 
 
 class PitchEnvelope {
@@ -20,6 +21,15 @@ public:
         mSynthParams = synthParams;
         phase = 0.0;
         phase_increment = 2 / sampleRate;
+        
+        delay_interpolator = ParameterInterpolator();
+        attack_interpolator = ParameterInterpolator();
+        curve_interpolator = ParameterInterpolator();
+
+        delay_ = 0;
+        attack_ = 0;
+        curve_ = 0;
+
     }
     
     float exp_func(float x, float d, float z, float c) {
@@ -39,11 +49,14 @@ public:
     }
 
     double process() {
-        float delay, attack, curve;
-        
-        delay  = mSynthParams->pitch_envelope_delay;
-        attack = pow(10, mSynthParams->pitch_envelope_attack);
-        curve  = mSynthParams->pitch_envelope_curve;
+        delay_interpolator.Update(delay_, mSynthParams->pitch_envelope_delay, 24*12);
+        attack_interpolator.Update(attack_, pow(10, mSynthParams->pitch_envelope_attack), 24*12);
+        curve_interpolator.Update(curve_, mSynthParams->pitch_envelope_curve, 24*12);
+
+        delay_ += delay_interpolator.Next();
+        attack_ += attack_interpolator.Next();
+        curve_ += curve_interpolator.Next();
+
         
         phase += phase_increment;
         
@@ -52,7 +65,7 @@ public:
             mGain = 1.0;
         } else {
             // x is 0 to 1.
-            mGain = exp_func(phase, delay, attack, curve);
+            mGain = exp_func(phase, delay_, attack_, curve_);
         }
         
         mGain = clamp(mGain, 0.0f, 1.0f);
@@ -61,6 +74,7 @@ public:
     }
     
     void noteOn() {
+        phase = 0;
     }
     
     void noteOff() {
@@ -72,6 +86,13 @@ private:
     float phase;
     float phase_increment;
     
+    float delay_;
+    float attack_;
+    float curve_;
+    ParameterInterpolator delay_interpolator;
+    ParameterInterpolator attack_interpolator;
+    ParameterInterpolator curve_interpolator;
+
     SynthParams *mSynthParams;
 };
 
